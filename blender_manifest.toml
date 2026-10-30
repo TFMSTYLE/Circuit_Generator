@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "tfmstyle_circuit"
-version = "1.0.1"
+version = "1.0.2"
 name = "TFMSTYLE - Circuit"
 tagline = "Generate autorouted traces"
 maintainer = "The French Monkey"

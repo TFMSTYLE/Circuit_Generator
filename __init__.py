@@ -4,7 +4,7 @@
 bl_info = {
     "name": "Circuit",
     "author": "The French Monkey",
-    "version": (1, 0, 1),
+    "version": (1, 0, 2),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Circuit",
     "description": "Generate autorouted traces",
@@ -58,7 +58,7 @@ PCB_PRESETS = {
     "RASPBERRY_PI": {
         "area": 8.56,
         "nodes": 100,
-        "density": "DENSE",
+        "density": "BALANCED",
         "description": "Raspberry Pi sized board (85mm x 56mm)"
     },
     "SMALL_MCU": {
@@ -76,7 +76,7 @@ PCB_PRESETS = {
     "LARGE_BOARD": {
         "area": 16.0,
         "nodes": 150,
-        "density": "DENSE",
+        "density": "BALANCED",
         "description": "Large development board"
     },
 }

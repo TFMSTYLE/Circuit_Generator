@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Fixed the crash when choosing the Raspberry Pi or Large Board preset. Both now use the Balanced layout
+
 ## 1.0.1
 
 The source code is now in this repository, with the license it has always been released under.
