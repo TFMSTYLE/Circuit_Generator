@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4
+
+- Removed Parallel Routing. It took 10 to 25 times longer and drew a sparser board, not the faster result it promised. A circuit made with it draws the normal way the next time it is regenerated
+
 ## 1.0.3
 
 - Added update checks: when a new version is published on Relay, an Update button appears in this panel. Nothing goes online when Allow Online Access is off, and Blender store installs keep updating through the store

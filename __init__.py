@@ -4,7 +4,7 @@
 bl_info = {
     "name": "Circuit",
     "author": "The French Monkey",
-    "version": (1, 0, 3),
+    "version": (1, 0, 4),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Circuit",
     "description": "Generate autorouted traces",
@@ -19,7 +19,6 @@ import math
 import heapq
 from mathutils import Vector
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     from . import relay_updater
@@ -309,42 +308,10 @@ def polyline_from_grid_path(path, area):
     return [grid_to_world(i, j, area) for i, j in path]
 
 # ---------------------------------------------------------
-# Parallel Routing
-# ---------------------------------------------------------
-
-def route_single_connection(p, q, blocked_nodes, seed, wander, max_len, area):
-    rng = random.Random(seed)
-    path = astar_longroute_maxlen(p, q, blocked_nodes, rng, wander[0], wander[1], max_len, area)
-    return p, q, path
-
-def route_paths_parallel(pads, neighbors, blocked_nodes, base_seed, wander, max_len, area, conn_per_pad, line_spacing, max_workers=4):
-    routes, used_pads, connections = [], set(), []
-    seed_counter = base_seed
-    for p in pads:
-        cands = neighbors[p][:]
-        random.Random(base_seed + hash(p)).shuffle(cands)
-        for q in cands[:conn_per_pad]:
-            connections.append((p, q, seed_counter))
-            seed_counter += 1
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futs = {ex.submit(route_single_connection, p, q, blocked_nodes.copy(), s, wander, max_len, area): (p, q)
-                for p, q, s in connections}
-        for f in as_completed(futs):
-            p, q, path = f.result()
-            if not path:
-                continue
-            if any(n in blocked_nodes and n not in (p, q) for n in path):
-                continue
-            routes.append(path)
-            used_pads.update((p, q))
-            reserve_path_nodes(path, blocked_nodes, max(1, int(line_spacing)), line_spacing)
-    return routes, used_pads
-
-# ---------------------------------------------------------
 # PCB mesh builder
 # ---------------------------------------------------------
 
-def build_pcb_mesh(density, base_nodes, trace_width, area, seed, max_len, line_spacing, cluster_amount, use_parallel=True):
+def build_pcb_mesh(density, base_nodes, trace_width, area, seed, max_len, line_spacing, cluster_amount):
     rng = random.Random(seed)
     if density == "BALANCED":
         pad_mult, conn_per_pad, neighbor_k, keepout_extra, wander, edge_margin, allow_clusters = 2.5, 8, 40, -2, (0.02, 0.10), 2, True
@@ -373,42 +340,33 @@ def build_pcb_mesh(density, base_nodes, trace_width, area, seed, max_len, line_s
     pad_connections = defaultdict(int)
     connection_pairs = set()
 
-    if use_parallel and len(pads) > 20:
-        routes, used_pads = route_paths_parallel(pads, neighbors, blocked_nodes, seed, wander, max_len, area, conn_per_pad, line_spacing, max_workers=4)
-        for path in routes:
-            if path:
-                s, e = path[0], path[-1]
-                pad_connections[s] += 1
-                pad_connections[e] += 1
-                connection_pairs.add((min(s, e), max(s, e)))
-    else:
-        routes, used_pads = [], set()
-        for p in pads:
-            routed = 0
-            cand = neighbors[p][:]
-            rng.shuffle(cand)
-            for q in cand:
-                if routed >= conn_per_pad:
-                    break
-                if pad_connections[p] >= 2 or pad_connections[q] >= 2:
+    routes, used_pads = [], set()
+    for p in pads:
+        routed = 0
+        cand = neighbors[p][:]
+        rng.shuffle(cand)
+        for q in cand:
+            if routed >= conn_per_pad:
+                break
+            if pad_connections[p] >= 2 or pad_connections[q] >= 2:
+                continue
+            pair = (min(p, q), max(p, q))
+            if pair in connection_pairs:
+                continue
+            path = astar_longroute_maxlen(p, q, blocked_nodes, rng, wander[0], wander[1], max_len, area)
+            if not path:
+                continue
+            if routes:
+                path_set = frozenset(path[1:-1])
+                if any(path_set & frozenset(r[1:-1]) for r in routes):
                     continue
-                pair = (min(p, q), max(p, q))
-                if pair in connection_pairs:
-                    continue
-                path = astar_longroute_maxlen(p, q, blocked_nodes, rng, wander[0], wander[1], max_len, area)
-                if not path:
-                    continue
-                if routes:
-                    path_set = frozenset(path[1:-1])
-                    if any(path_set & frozenset(r[1:-1]) for r in routes):
-                        continue
-                reserve_path_nodes(path, blocked_nodes, keepout, line_spacing)
-                routes.append(path)
-                used_pads.update((p, q))
-                pad_connections[p] += 1
-                pad_connections[q] += 1
-                connection_pairs.add(pair)
-                routed += 1
+            reserve_path_nodes(path, blocked_nodes, keepout, line_spacing)
+            routes.append(path)
+            used_pads.update((p, q))
+            pad_connections[p] += 1
+            pad_connections[q] += 1
+            connection_pairs.add(pair)
+            routed += 1
 
     pads_connected = [p for p in pads if p in used_pads]
 
@@ -454,9 +412,8 @@ def rebuild_circuit(obj):
     m = obj.get("c_maxlen", 400)
     l = obj.get("c_linespacing", 0.4)
     c = obj.get("c_cluster_amount", 0.4)
-    p = obj.get("c_parallel", True)
     _grid_cache.clear()
-    mesh = build_pcb_mesh(d, n, w, a, s, m, l, c, p)
+    mesh = build_pcb_mesh(d, n, w, a, s, m, l, c)
     old = obj.data
     obj.data = mesh
     if old and old.users == 0:
@@ -478,7 +435,7 @@ def generate_circuit(context):
     p = context.scene.circuitgen_props
     o = context.active_object
     keys = ("c_density", "c_nodes", "c_width", "c_area", "c_seed", "c_maxlen", 
-            "c_linespacing", "c_cluster_amount", "c_parallel")
+            "c_linespacing", "c_cluster_amount")
     if o and o.type == "MESH" and "circuit_generator" in o and o.select_get():
         for k in keys: o[k] = getattr(p, k)
         rebuild_circuit(o)
@@ -511,7 +468,7 @@ def update_circuit(self, context):
 
     keys = (
         "c_density", "c_nodes", "c_width", "c_area", "c_seed",
-        "c_maxlen", "c_linespacing", "c_cluster_amount", "c_parallel"
+        "c_maxlen", "c_linespacing", "c_cluster_amount"
     )
     for k in keys:
         target[k] = getattr(p, k)
@@ -553,7 +510,6 @@ class CircuitGenProperties(bpy.types.PropertyGroup):
     c_linespacing:     bpy.props.FloatProperty(name="Line Spacing", default=0.4, min=0.2, max=2.0, subtype='FACTOR', update=update_circuit, description="Spacing between traces (lower = denser, more traces)")
     c_cluster_amount:  bpy.props.FloatProperty(name="Cluster Amount", default=0.4, min=0.0, max=1.0, subtype='FACTOR', update=update_circuit, description="Probability of traces forming parallel clusters (0=none, 1=maximum)")
     c_seed:            bpy.props.IntProperty(name="Seed", default=0, min=0, max=999999, subtype='FACTOR', update=update_circuit, description="Random seed for reproducible results")
-    c_parallel:        bpy.props.BoolProperty(name="Parallel Routing", default=False, update=update_circuit, description="Use parallel processing for faster generation (recommended for large boards)")
 
 # ---------------------------------------------------------
 # Operator
@@ -601,7 +557,6 @@ class VIEW3D_PT_circuit(bpy.types.Panel):
         layout.prop(p, "c_linespacing", slider=True)
         layout.prop(p, "c_cluster_amount", slider=True)
         layout.prop(p, "c_seed")
-        layout.prop(p, "c_parallel", toggle=True)
 
         layout.separator(factor=0.5)
 

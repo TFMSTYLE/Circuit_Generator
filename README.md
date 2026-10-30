@@ -3,7 +3,7 @@
 ![circuit-thumb](https://github.com/user-attachments/assets/421558b9-6098-48b8-b966-438b6be67db9)
 
 **Author:** The French Monkey (TFMSTYLE)  
-**Version:** 1.0.3  
+**Version:** 1.0.4  
 
 ---
 
@@ -85,13 +85,6 @@ A higher value creates more multi-line bundles that mimic bus wiring.
 ### Seed
 Random seed used for reproducibility.  
 Changing the seed generates a different layout while keeping other parameters identical.  
-
----
-
-### Parallel Routing
-Enables multithreaded pathfinding to speed up generation on larger boards.  
-This option is recommended for high node counts and dense layouts.  
-For smaller circuits, it can be disabled to ensure consistent results.
 
 ---
 
