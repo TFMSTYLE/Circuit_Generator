@@ -4,7 +4,7 @@
 bl_info = {
     "name": "Circuit",
     "author": "The French Monkey",
-    "version": (1, 0, 2),
+    "version": (1, 0, 3),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Circuit",
     "description": "Generate autorouted traces",
@@ -20,6 +20,11 @@ import heapq
 from mathutils import Vector
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+try:
+    from . import relay_updater
+except ImportError:  # the Addon Collection has its own updates
+    relay_updater = None
 
 # ---------------------------------------------------------
 # Router & Density Config
@@ -575,6 +580,8 @@ class VIEW3D_PT_circuit(bpy.types.Panel):
     bl_category = "Circuit"
 
     def draw(self, context):
+        if relay_updater:
+            relay_updater.draw(self.layout)
         layout = self.layout
         p = context.scene.circuitgen_props
         o = context.object
@@ -614,12 +621,16 @@ classes = (
 )
 
 def register():
+    if relay_updater:
+        relay_updater.register("blender-circuit")
     """Register addon classes and properties."""
     for c in classes:
         bpy.utils.register_class(c)
     bpy.types.Scene.circuitgen_props = bpy.props.PointerProperty(type=CircuitGenProperties)
 
 def unregister():
+    if relay_updater:
+        relay_updater.unregister()
     """Unregister addon classes and properties."""
     for c in reversed(classes):
         bpy.utils.unregister_class(c)

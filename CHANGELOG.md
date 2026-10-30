@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Added update checks: when a new version is published on Relay, an Update button appears in this panel. Nothing goes online when Allow Online Access is off, and Blender store installs keep updating through the store
+
 ## 1.0.2
 
 - Fixed the crash when choosing the Raspberry Pi or Large Board preset. Both now use the Balanced layout
