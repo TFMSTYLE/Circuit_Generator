@@ -3,7 +3,7 @@
 ![circuit-thumb](https://github.com/user-attachments/assets/421558b9-6098-48b8-b966-438b6be67db9)
 
 **Author:** The French Monkey (TFMSTYLE)  
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 
 ---
 
@@ -110,4 +110,20 @@ Creates a new circuit object or updates the selected one using the current param
 - The generated mesh can be used as geometry, converted to curves, or used for texture baking.  
 - Applying materials, solidify, or wireframe modifiers can create more stylized PCB or sci-fi panel effects.
 
+---
 
+## Install
+
+Needs Blender 4.2 or later. Get the zip from [tfmstyle.com](https://tfmstyle.com), then in Blender open Edit > Preferences > Get Extensions, open the menu at the top right and pick Install from Disk.
+
+To build the zip yourself, run this in the repo folder:
+
+```bash
+blender --command extension build
+```
+
+---
+
+## License
+
+GPL 3.0 or later. See [LICENSE](LICENSE).
