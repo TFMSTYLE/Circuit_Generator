@@ -4,7 +4,7 @@
 bl_info = {
     "name": "Circuit",
     "author": "The French Monkey",
-    "version": (1, 0, 4),
+    "version": (1, 0, 5),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Circuit",
     "description": "Generate autorouted traces",
